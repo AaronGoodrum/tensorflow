@@ -1,4 +1,5 @@
 console.log('Hello TensorFlow');
+
 /**
  * Get the car data reduced to just the variables we are interested
  * and cleaned of missing data.
@@ -14,7 +15,6 @@ async function getData() {
   
   return cleaned;
 }
-
 async function run() {
   // Load and plot the original input data that we are going to train on.
   const data = await getData();
@@ -37,19 +37,38 @@ async function run() {
   // Create the model
 const model = createModel();  
 tfvis.show.modelSummary({name: 'Model Summary'}, model);
+
+// Convert the data to a form we can use for training.
+const tensorData = convertToTensor(data);
+const {inputs, labels} = tensorData;
+    
+// Train the model  
+await trainModel(model, inputs, labels);
+console.log('Done Training');
+
 }
 
-function createModel() {
-  // Create a sequential model
-  const model = tf.sequential(); 
+async function trainModel(model, inputs, labels) {
+  // Prepare the model for training.  
+  model.compile({
+    optimizer: tf.train.adam(),
+    loss: tf.losses.meanSquaredError,
+    metrics: ['mse'],
+  });
   
-  // Add a single hidden layer
-  model.add(tf.layers.dense({inputShape: [1], units: 1, useBias: true}));
+  const batchSize = 32;
+  const epochs = 50;
   
-  // Add an output layer
-  model.add(tf.layers.dense({units: 1, useBias: true}));
-
-  return model;
+  return await model.fit(inputs, labels, {
+    batchSize,
+    epochs,
+    shuffle: true,
+    callbacks: tfvis.show.fitCallbacks(
+      { name: 'Training Performance' },
+      ['loss', 'mse'], 
+      { height: 200, callbacks: ['onEpochEnd'] }
+    )
+  });
 }
 
 /**
@@ -92,6 +111,21 @@ function convertToTensor(data) {
       labelMin,
     }
   });  
+}
+
+
+function createModel() {
+  // Create a sequential model
+  const model = tf.sequential(); 
+  
+  // Add a single hidden layer
+  model.add(tf.layers.dense({inputShape: [1], units: 1, useBias: true}));
+  
+  // Add an output layer
+  model.add(tf.layers.dense({units: 1, useBias: true}));
+  // model.add(tf.layers.dense({units: 1}));
+
+  return model;
 }
 
 document.addEventListener('DOMContentLoaded', run);
